@@ -51,6 +51,13 @@ def Hz1(t, a , da,p): #a,t
     da[3] =  -(-Ohm*a[2] - (a[1]/qa**2) *G* ( M1* (a[0]**2 + a[1]**2/ qa**2 + (a1 + b1 )**2 )**(-1.5) + M2* (a[0]**2 + a[1]**2/ qa**2 +  (a2 + b2 )**2)**(-1.5) ) )
 
 
+def vect(x,y,px,py):
+    v1 = px + Ohm*y
+    v2 = py - Ohm*x
+    v3 = Ohm*py- x*G* ( M1* (x**2 + y**2/ qa**2 + (a1 + b1 )**2 )**(-1.5) + M2* (x**2 + y**2/ qa**2 + (a2+ b2 )**2 )**(-1.5) )
+    v4 =  -Ohm*px- (y/qa**2) *G* ( M1* (x**2 + y**2/ qa**2 + (a1 + b1 )**2 )**(-1.5) + M2* (x**2 + y**2/ qa**2 +  (a2 + b2 )**2)**(-1.5) )
+    
+    return [v1,v2,v3,v4]
 
 #potential
 def potential(x,y,z,PARAMETERS = [a1,b1,M1,a2,b2,M2,qa,Ohm,G]):
@@ -74,8 +81,8 @@ H0 = -5.207*A #hamiltonian
 y0 =0 
 
 #grid on which LDs are calculated
-ax1_min,ax1_max = [-0.7, -0.3]
-ax2_min,ax2_max = [-100,100]
+ax1_min,ax1_max = [-1, 1]
+ax2_min,ax2_max = [-500,500]
 N1, N2 = [200,200]
 
 grid_parameters = [[ax1_min, ax1_max, N1],[ax2_min, ax2_max, N2]]
@@ -96,8 +103,8 @@ xax = []
 yax = []
 
 #integration time
-T = 8000 #timesteps
-t = np.linspace(0.0, 80.0, T)
+T = 5000 #timesteps
+t = np.linspace(0.0, 5.0, T)
 
 #calculating the LDs
 for i in range(len(points_x)):
@@ -118,7 +125,7 @@ for i in range(len(points_x)):
     
             funcptr = Hz0.address # address to ODE function for
             
-     #       funcptr = Hz1.address #back
+  #          funcptr = Hz1.address #back
             
             u0 = np.array([x0,y0,px0,py0]) # Initial conditions
         
@@ -139,19 +146,21 @@ for i in range(len(points_x)):
                 px.append(usol[k][2])
                 py.append(usol[k][3])
     
-            v = [x,y,px,py]
+            v = vect(-np.array(x),-np.array(y),-np.array(px),-np.array(py))
             
     
             #cacluating the LD with p-norm, p =0.5
-            intermedLD = np.sum(np.abs(v)**0.5, axis=1)
+            intermedLD = np.sum(0.001*np.abs(v)**1, axis=1)
             LD.append(np.sum(intermedLD))
                    
-
 end = time.time()
 print(end - start)
 
+
 #plotting the LDs
 plt.figure(dpi=200)
+yax = np.true_divide(yax,209.64 )
 plt.scatter(xax,yax,c=LD ,cmap = "plasma", s = 0.5)       
-plt.colorbar() 
-
+plt.colorbar(label = "LD") 
+plt.xlabel("x")
+plt.ylabel("$p_x$")
