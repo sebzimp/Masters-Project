@@ -67,7 +67,7 @@ def spec(tim, firs,sec,thir):
     py0 = thir
     
     
-    H = 1.0/3.0 #hamiltonian
+    H = 1.0/12.0 #hamiltonian
     
     px0 = np.sqrt(2.0*(H - 0.5*y0**2.0 - 0.5*py0**2.0 + 1.0/3.0 * y0**3.0)) 
     
@@ -128,6 +128,16 @@ def LD(tau, x0,y0,py0,p):
     v = [np.array(a[2]) ,np.array(a[3]), -np.array(a[0]) - 2*np.array(a[0])*np.array(a[1]), -np.array(a[1])-np.array(a[0])**2 +np.array(a[1])**2]
     
     intermedLD = np.sum(0.1*np.abs(v)**p, axis=1)
+    
+ #   x = np.array(a[0])
+ #   y = np.array(a[1])
+ #   px = np.array(a[2])
+#    py = np.array(a[3])
+
+ #   ac = [ -x-2*x*y,-y-x**2+y**2, -px-2*px*y-2*x*py , -py-2*x*px+2*y*py  ] #acceleration descript
+    
+ #   intermedLD = np.sum(0.1*np.abs(ac)**p, axis=1)
+    
     LD = np.sum(intermedLD)
     
     return LD
@@ -137,6 +147,16 @@ def LD2(tau, x0,y0,py0,p):
     v = [-np.array(a[2]) ,-np.array(a[3]), np.array(a[0]) + 2*np.array(a[0])*np.array(a[1]), np.array(a[1])+np.array(a[0])**2 -np.array(a[1])**2]
     
     intermedLD = np.sum(0.1*np.abs(v)**p, axis=1)
+    
+ #   x = np.array(a[0])
+ #   y = np.array(a[1])
+ #   px = np.array(a[2])
+ #   py = np.array(a[3])
+
+ #   ac = [ -x-2*x*y,-y-x**2+y**2, -px-2*px*y-2*x*py , -py-2*x*px+2*y*py  ] #acceleration descript
+    
+ #   intermedLD = np.sum(0.1*np.abs(ac)**p, axis=1)    
+    
     LD = np.sum(intermedLD)
     
     return LD
@@ -151,25 +171,58 @@ def various(y0,yL,stepy, py0, pyL, steppy):
     M2 = []
     yplot = []
     pyplot = []
+    
+    meshLD = []
     for i in range(len(ylin)):
         for j in range(len(pylin)):
             
-            px2 = 2.0*(1.0/3.0 - 0.5*ylin[i]**2.0 - 0.5*pylin[j]**2.0 + 1.0/3.0 * ylin[i]**3.0)
+            px2 = 2.0*(1.0/12.0 - 0.5*ylin[i]**2.0 - 0.5*pylin[j]**2.0 + 1.0/3.0 * ylin[i]**3.0)
             
             if px2 >= 0:
                 yplot.append(ylin[i])
                 pyplot.append(pylin[j])
-                M.append(LD(10, 0.0, ylin[i], pylin[j], 0.5 ) )
-                M2.append(LD(-10, 0.0, ylin[i], pylin[j], 0.5 ) )
+                M.append(LD(50, 0.0, ylin[i], pylin[j], 0.5 ) )
+                M2.append(LD(-50, 0.0, ylin[i], pylin[j], 0.5 ) )
     
-    return yplot, pyplot,M, M2
+    LagranDes = np.add(M,M2)
+    
+    k = 0
+    
+    for i in range(len(ylin)):
+        for j in range(len(pylin)):
+            
+            px2 = 2.0*(1.0/12.0 - 0.5*ylin[i]**2.0 - 0.5*pylin[j]**2.0 + 1.0/3.0 * ylin[i]**3.0)
+            if px2 >=0:
+                meshLD.append(LagranDes[k])
+                k = k+1
+            else:
+                meshLD.append(-1)
+    
+    return yplot, pyplot,M, M2 , meshLD, ylin, pylin
 
-a = various(-0.75,1.5, 500, -1,1, 500)
+a = various(-0.5,0.5, 500, -0.5,0.5, 500)
 
     
 end = time.time()
 
 print(end-start)
+
+meshLD = np.reshape(a[4], (len(a[5]), len(a[6]) ), order = 'F')
+X,Y = np.meshgrid(a[5],a[6])    
+
+meshLD  = np.ma.masked_where(meshLD == -1, meshLD, copy = 'False')
+
+#gradient_x, gradient_y = np.gradient(meshLD)
+#gradient_magnitude = np.sqrt(gradient_x**2 + gradient_y**2)
+
+
+plt.figure(dpi=200)
+plt.contourf(X,Y,meshLD, levels = 100,cmap= "plasma")
+plt.colorbar(label = "LD") 
+plt.xlabel("$q$")
+plt.ylabel("$p$")
+
+
 
 plt.figure(dpi=200)
 plt.scatter(a[0],a[1],c=a[2] ,cmap = "plasma", s = 0.5)       
@@ -190,3 +243,4 @@ plt.scatter(a[0],a[1],c=LagranDes ,cmap = "plasma", s = 0.5)
 plt.colorbar(label = "LD") 
 plt.xlabel("$y$")
 plt.ylabel("$p_y$")
+

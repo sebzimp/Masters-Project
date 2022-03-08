@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jan 14 19:32:06 2022
+Created on Thu Jan 13 22:22:57 2022
 
 @author: sebzi
 """
@@ -21,14 +21,12 @@ from scipy import integrate
 
 start = time.time()
 
-mu = 0.25
-
 @cfunc(lsoda_sig)
 def Hz0(t,a,da,p): #a,t
 
 
     da[0] = a[1]
-    da[1] =  mu - a[0]**2
+    da[1] =  a[0] - a[0]**3
 
 
 @cfunc(lsoda_sig)
@@ -36,13 +34,17 @@ def Hz1(t,a,da,p): #a,t
 
 
     da[0] = -a[1]
-    da[1] =  -(mu - a[0]**2)
+    da[1] =  -(a[0] - a[0]**3)
 
 
     
+#ICs
+def Hamiltonian(x,px):
+  
+    H = 0.5*(px**2 -x**2)
+    return H
 
-
-ax1_min,ax1_max = [-1.5, 1.5]
+ax1_min,ax1_max = [-1.6, 1.6]
 ax2_min,ax2_max = [-1,1]
 N1, N2 = [301,301]
 
@@ -60,16 +62,17 @@ mask = False
 
 
 
+y0 =0 #fixed dimension
 
 x_plot = []
 px_plot = []
 LD = []
 LD2 = []
-T = 800 #timesteps
-t = np.linspace(0.0, 8.0, T)
+T = 1000 #timesteps
+t = np.linspace(0.0, 10.0, T)
 
-xbound = [-10,10]
-ybound = [-10,10]
+LDforcheck = []
+LDbackcheck = []
   
 for i in range(len(points_x)):
     for j in range(len(points_y)):
@@ -88,7 +91,7 @@ for i in range(len(points_x)):
         funcptr = Hz0.address
         
         
-        usol, success = lsoda(funcptr, u0, t ,rtol = 1.0e-4, atol = 1.0e-9)
+        usol, success = lsoda(funcptr, u0, t )#,rtol = 1.0e-8, atol = 1.0e-9)
         
         x = []
         px = []
@@ -96,26 +99,23 @@ for i in range(len(points_x)):
 
         
         for k in range(len(usol)):
-            if usol[k][0]**2 + usol[k][1]**2 <= 15**2:
-                x.append(usol[k][0])
-                px.append(usol[k][1])
-            else:
-                break
+            x.append(usol[k][0])
+            px.append(usol[k][1])
         
-        v = [np.array(px),mu - np.array(x)**2]
+        v = [np.array(px),np.array(x)- np.array(x)**3]
          
-        intermedLD = np.sum(0.01*np.abs(v)**0.5, axis=1)
-        
- #       ac = [mu - np.array(x)**2, -2*np.array(x)*np.array(px)]
- #       intermedLD = np.sum(0.01*np.abs(ac)**0.5, axis=1)
-
+        intermedLD = np.sum(0.01*np.abs(v)**1, axis=1)
         LD.append(np.sum(intermedLD))
 
-       
+        x = np.array(x)
+        px = np.array(px)
+        
+    #    integ = integrate.trapezoid([np.abs(x)**0.5,np.abs(px)**0.5],[t,t]) #try solve using integrator
+    #    LDforcheck.append(np.sum(integ))       
         
         funcptr2 = Hz1.address
         
-        usol2, success2 = lsoda(funcptr2, u0, t, rtol = 1.0e-4, atol = 1.0e-9)
+        usol2, success2 = lsoda(funcptr2, u0, t) #,rtol = 1.0e-8, atol = 1.0e-9)
         
         x2 = []
         px2 = []
@@ -123,41 +123,29 @@ for i in range(len(points_x)):
 
         
         for k in range(len(usol2)):
-            if usol2[k][0]**2 + usol2[k][1]**2 <= 15**2:
-                x2.append(usol2[k][0])
-                px2.append(usol2[k][1])
-            else:
-                break
+            x2.append(usol2[k][0])
+            px2.append(usol2[k][1])
         
-        v2 = [-np.array(px2),-mu + np.array(x2)**2]
+        v2 = [-np.array(px2),-np.array(x2)+ np.array(x2)**3]
 
+        x2 = np.array(x2)
+        px2 = np.array(px2)
         
-        intermedLD2 = np.sum(0.01*np.abs(v2)**0.5, axis=1)
- 
-#        ac2 = [mu - np.array(x2)**2, -2*np.array(x2)*np.array(px2)]
-#        intermedLD2 = np.sum(0.01*np.abs(ac2)**0.5, axis=1)        
-        
+        intermedLD2 = np.sum(0.01*np.abs(v2)**1, axis=1)
         LD2.append(np.sum(intermedLD2))
         
-
+    #    integ2 = integrate.trapezoid([np.abs(x2)**0.5,np.abs(px2)**0.5],[t,t]) #try solve using integrator
+    #    LDbackcheck.append(np.sum(integ2)  )        
+   
 propLD = np.add(LD,LD2)        
 
+#checkLD = np.add(LDforcheck,LDbackcheck) 
+
+#print(propLD)
+#print(checkLD)
 
 end = time.time()
 print(end - start)
-
-#meshLD = np.reshape(propLD, (len(points_x), len(points_y) ), order = 'F')
-#X,Y = np.meshgrid(points_x,points_y)    
-
-#gradient_x, gradient_y = np.gradient(meshLD)
-#gradient_magnitude = np.sqrt(gradient_x**2 + gradient_y**2)
-
-
-#plt.figure(dpi=200)
-#plt.contourf(X,Y,gradient_magnitude, levels = 100,cmap= "plasma")
-#plt.colorbar(label = "LD") 
-#plt.xlabel("$q$")
-#plt.ylabel("$p$")
 
 plt.figure(dpi=200)
 plt.scatter(x_plot,px_plot,c=propLD ,cmap = "plasma", s = 0.5)       
